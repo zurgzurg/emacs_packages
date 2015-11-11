@@ -1,8 +1,31 @@
 ;;
 ;; ram serial mode
 ;;
-(require 'term)
 
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;
+;; config variables
+;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+(defvar-local rs-chunk-size 1000000
+  "Chunk size.
+ Buffers will not be larger than this limit. Instead the
+data will be saved to disk as a file.")
+
+(defvar-local rs-chunk-file-pattern "/home/CORP/rbhamidipaty/pat-%s-%d"
+  "File name pattern to use when saving buffer chunks.
+The %s is replaced with the serial port name and the %d is the
+chunk number.")
+
+(defvar-local rs-chunk-number 0
+  "Next number to use when saving a chunk.")
+
+(defvar-local rs-serial-port nil
+  "Name of serial port for current buffer.")
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; mode def
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 (define-derived-mode rs-mode fundamental-mode "RS"
   "Major mode to interact with a serial port."
   t)
@@ -18,19 +41,7 @@
 		 :noquery t))
        (buffer (process-buffer process)))
     (set-buffer buffer)
-    (rs-mode)
-    (set-process-filter process 'rs-filter)
-    buffer))
-
-(defun rs-start-test ()
-  "Test mode."
-  (interactive)
-  (let*
-      ((buffer (generate-new-buffer-name "rs-test"))
-       (process (start-process "rs-test" buffer
-			       "/usr/bin/python"
-			       "/home/CORP/rbhamidipaty/scripts/serial")))
-    (set-buffer buffer)
+    (setq rs-serial-port port)
     (rs-mode)
     (set-process-filter process 'rs-filter)
     buffer))
@@ -43,7 +54,7 @@
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;
-;; escape sequences
+;; color escape sequences
 ;;
 ;;  0 - black
 ;;  1 - read
@@ -69,6 +80,22 @@
 ;;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; file chunking
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+(defun rs-do-chunk-output ()
+  (let (fname short-serial-name)
+    (setq short-serial-name (replace-regexp-in-string "/dev/" rs-serial-port))
+    (setq fname (format rs-chunk-file-pattern short-serial-name rs-chunk-number))
+    (write-region nil nil fname)
+    (setq rs-chunk-number (+ 1 rs-chunk-number))
+    (erase-buffer)
+    t))
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;
+;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 (defun rs-apply-insert-filters (s)
   (replace-regexp-in-string "\r" "" s))
 
@@ -83,4 +110,6 @@
 (defun rs-filter (proc string)
   (let (s)
     (setq s (rs-apply-insert-filters string))
-    (rs-do-append (process-buffer proc) s)))
+    (rs-do-append (process-buffer proc) s)
+    (if (>= (point-max) rs-chunk-size)
+	(rs-do-chunk-output))))
