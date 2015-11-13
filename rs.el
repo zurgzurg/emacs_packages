@@ -2,10 +2,28 @@
 ;; ram serial mode
 ;;
 
+;;
+;; pick up functions: serial-read-name serial-speed
+(require 'term)
+
+;;
+;; debug support
+;;
+
+(setq debug-on-error t)
+
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;
-;; config variables
+;; global variables
+;; 
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+(defvar rs-mode-map nil
+  "Keymap for rs-mode.")
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;
+;; buffer-local config variables
+;; 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 (defvar-local rs-chunk-size 1000000
   "Chunk size.
@@ -23,16 +41,65 @@ chunk number.")
 (defvar-local rs-serial-port nil
   "Name of serial port for current buffer.")
 
+(defvar-local rs-process nil
+  "The process object - really just the serial port.")
+
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; mode def
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-(define-derived-mode rs-mode fundamental-mode "RS"
-  "Major mode to interact with a serial port."
+(defun rs-self-insert ()
+  (interactive)
+  (process-send-string rs-process (format "%c" last-command-event))
+  (message "normal self insert"))
+
+(defun rs-newline ()
+  (interactive)
+  (process-send-string rs-process "\r")
+  (message "sent newline"))
+
+(defun rs-send-intr ()
+  (interactive)
   t)
+
+(defun rs-make-keymap ()
+  (let (m code)
+    (setq m (make-sparse-keymap))
+    (setq code ?a)
+    (while (<= code ?z)
+      (define-key m (byte-to-string code) 'rs-self-insert)
+      (setq code (+ 1 code)))
+    (setq code ?A)
+    (while (<= code ?A)
+      (define-key m (byte-to-string code) 'rs-self-insert)
+      (setq code (+ 1 code)))
+    (setq code ?0)
+    (while (<= code ?9)
+      (define-key m (byte-to-string code) 'rs-self-insert)
+      (setq code (+ 1 code)))
+    (define-key m "\C-c\C-c" 'rs-self-insert)
+    (define-key m " " 'rs-self-insert)
+    (define-key m (kbd "C-m") 'rs-newline)
+    m))
+
+(defun rs-mode (port speed)
+  "Major mode to interact with a serial port."
+  (interactive (list (serial-read-name) (serial-read-speed)))
+  (let (b )
+    (setq b (rs-start port speed))
+    (set-buffer b)
+    (kill-all-local-variables)
+
+    (setq major-mode 'rs-mode)
+    (setq mode-name "RS")
+    (if (null rs-mode-map)
+	(setq rs-mode-map (rs-make-keymap)))
+    (use-local-map rs-mode-map)
+
+    (setq rs-serial-port port)
+    (switch-to-buffer b)))
 
 (defun rs-start (port speed)
   "Start ram serial mode."
-  (interactive (list (serial-read-name) (serial-read-speed)))
   (let*
       ((process (make-serial-process
 		 :port port
@@ -40,9 +107,7 @@ chunk number.")
 		 :coding 'no-conversion
 		 :noquery t))
        (buffer (process-buffer process)))
-    (set-buffer buffer)
-    (setq rs-serial-port port)
-    (rs-mode)
+    (setq rs-process process)
     (set-process-filter process 'rs-filter)
     buffer))
 
@@ -85,12 +150,17 @@ chunk number.")
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 (defun rs-do-chunk-output ()
   (let (fname short-serial-name)
-    (setq short-serial-name (replace-regexp-in-string "/dev/" rs-serial-port))
-    (setq fname (format rs-chunk-file-pattern short-serial-name rs-chunk-number))
+    (setq short-serial-name
+	  (replace-regexp-in-string "/dev/" "" rs-serial-port))
+    (setq fname
+	  (format rs-chunk-file-pattern short-serial-name rs-chunk-number))
     (write-region nil nil fname)
     (setq rs-chunk-number (+ 1 rs-chunk-number))
     (erase-buffer)
     t))
+
+(debug-on-entry 'rs-do-chunk-output)
+(cancel-debug-on-entry 'rs-do-chunk-output)
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;
@@ -111,5 +181,5 @@ chunk number.")
   (let (s)
     (setq s (rs-apply-insert-filters string))
     (rs-do-append (process-buffer proc) s)
-    (if (>= (point-max) rs-chunk-size)
+    (if (and (numberp rs-chunk-size) (>= (point-max) rs-chunk-size))
 	(rs-do-chunk-output))))
