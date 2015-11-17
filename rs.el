@@ -215,13 +215,24 @@ Resets chunking. Erases buffer and all saved chunks."
 (defun rs-apply-insert-filters (s)
   (replace-regexp-in-string "\r" "" s))
 
+(defun rs-handle-insert (s)
+  (let (start idx)
+    (setq start 0)
+    (setq idx (string-match "\b" s start))
+    (while idx
+      (insert (substring s start idx))
+      (delete-backward-char 1)
+      (setq start (+ 1 idx))
+      (setq idx (string-match "\b" s start)))
+    (insert (substring s start))))
+
 (defun rs-do-append (buf s)
   (with-current-buffer buf
     (if (= (point) (point-max))
-	(insert s)
+	(rs-handle-insert s)
       (save-excursion
 	(goto-char (point-max))
-	(insert s)))))
+	(rs-handle-insert s)))))
 
 (defun rs-filter (proc string)
   (let (s)
