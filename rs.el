@@ -133,6 +133,29 @@ Used to cleanup chunk output files.")
     (set-process-filter p 'rs-filter)
     (switch-to-buffer b)))
 
+(defun rs-mode-test (proc)
+  (let (b)
+    (setq b (process-buffer proc))
+    (set-buffer b)
+    (kill-all-local-variables)
+
+    ;; define all the buffer local rs-mode variables
+    (make-local-variable 'rs-chunk-number)
+    (make-local-variable 'rs-serial-port)
+    (make-local-variable 'rs-process)
+
+    (setq rs-chunk-number 0)
+    (setq rs-serial-port "test")
+    (setq rs-process proc)
+
+    (setq major-mode 'rs-mode)
+    (setq mode-name "RS")
+    (if (null rs-mode-map)
+	(setq rs-mode-map (rs-make-keymap)))
+    (use-local-map rs-mode-map)
+
+    (set-process-filter proc 'rs-filter)))
+
 (defun rs-buffer-is-rs-buffer-p ()
   (if rs-process
       t
