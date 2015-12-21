@@ -183,7 +183,9 @@ Used to cleanup chunk output files.")
 			rs-chunk-directory
 			(format rs-chunk-file-pattern
 				short-serial-name rs-chunk-number)))
-    (write-region nil nil fname)
+    (let (coding-system-for-write)
+      (setq coding-system-for-write 'no-conversion)
+      (write-region nil nil fname))
     (setq rs-chunk-number (+ 1 rs-chunk-number))
     (erase-buffer)
     t))
@@ -203,7 +205,7 @@ Resets chunking. Erases buffer and all saved chunks."
     (while file-list
       (setq f (car file-list))
       (setq file-list (cdr file-list))
-      (delete file f)))
+      (delete-file f)))
 
   (setq rs-chunk-number 0)
   (erase-buffer))
@@ -213,7 +215,8 @@ Resets chunking. Erases buffer and all saved chunks."
 ;;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 (defun rs-apply-insert-filters (s)
-  (replace-regexp-in-string "\r" "" s))
+  ;(replace-regexp-in-string "\r" "" s))
+  s)
 
 (defun rs-handle-insert (s)
   (let (start idx)
@@ -226,20 +229,46 @@ Resets chunking. Erases buffer and all saved chunks."
       (setq idx (string-match "\b" s start)))
     (insert (substring s start))))
 
-(defun rs-do-append (buf s)
-  (with-current-buffer buf
-    (if (= (point) (point-max))
-	(rs-handle-insert s)
-      (save-excursion
-	(goto-char (point-max))
-	(rs-handle-insert s)))))
+(defun rs-handle-insert-2 (s)
+  (let (start idx ch)
+    (setq start 0)
+    (while (setq idx (string-match "\\([\b\r\n]\\)" s start))
+      (insert (substring s start idx))
+      (setq ch (aref s idx))
+      (cond
+       ((eql ch ?\b) ; backspace
+	(delete-backward-char 1)
+	(setq start (+ 1 idx)))
+       ((eql ch ?\r) ; carriage return
+	t)
+       ((eql ch ?\n) ; newline
+	t))
+      t)))
 
 (defun rs-filter (proc string)
-  (let (s)
-    (setq s (rs-apply-insert-filters string))
-    (rs-do-append (process-buffer proc) s)
-    (if (and (numberp rs-chunk-size) (>= (point-max) rs-chunk-size))
-	(rs-do-chunk-output))))
+  (let (b w wlist want-display-update prev-point)
+    (setq b (process-buffer proc))
+    (when (buffer-live-p b)
+      (with-current-buffer b
+	(setq wlist (get-buffer-window-list b nil t))
+	(when (= (length wlist) 1)
+
+	  (setq w (car wlist))
+	  (setq prev-point (window-point w))
+	  (when (= prev-point (point-max))
+	    (setq want-display-update t)))
+
+	(save-excursion
+	  (goto-char (point-max))
+	  (rs-handle-insert (rs-apply-insert-filters string)))
+
+	(if (and (numberp rs-chunk-size) (>= (point-max) rs-chunk-size))
+	    (rs-do-chunk-output))
+
+	(if want-display-update
+	    (set-window-point w (point-max)))
+
+	t))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 (provide 'rs)
