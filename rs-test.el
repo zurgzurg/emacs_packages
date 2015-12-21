@@ -3,6 +3,7 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 (defvar rs-test-cur-buffer nil)
 (defvar rs-test-cur-proc nil)
+(defvar rs-test-log-buffer nil)
 
 (defvar rs-test-prog "/home/CORP/rbhamidipaty/lib_emacs/rs-test-gen.py")
 
@@ -22,6 +23,10 @@
 	       (buffer-substring (point-min) (point-max))
 	       str))
 	(throw 'mismatch nil))))
+
+(defun rs-test-log (fmt &rest args)
+  (with-current-buffer rs-test-log-buffer
+    (insert (apply 'format fmt args) "\n")))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; the tests
@@ -49,10 +54,15 @@
     tlist))
 
 (defun rs-test-run-tests (tlist)
+  (setq rs-test-log-buffer (get-buffer-create "*rs-test-log*"))
+  (with-current-buffer rs-test-log-buffer
+    (erase-buffer))
+  (rs-test-log "start test run")
   (let (cur pass-list fail-list)
     (while tlist
       (setq cur (car tlist))
       (setq tlist (cdr tlist))
+      (rs-test-log "Starting test %s" (symbol-name cur))
       (if (catch 'mismatch (funcall cur))
 	  (setq pass-list (cons cur pass-list))
 	(setq fail-list (cons cur fail-list))))
