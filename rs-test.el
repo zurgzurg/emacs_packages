@@ -53,6 +53,20 @@
     (rs-test-teardown))
   t)
 
+(defun rs-test-test-03 ()
+  (rs-test-setup "simple_send" "abc\ndef")
+  (unwind-protect
+      (rs-test-expect-buffer "abc\ndef")
+    (rs-test-teardown))
+  t)
+
+(defun rs-test-test-04 ()
+  (rs-test-setup "count_lines" "text" "1" "5")
+  (unwind-protect
+      (rs-test-expect-buffer "text1\ntext2\ntext3\ntext4\ntext5\n")
+    (rs-test-teardown))
+  t)
+
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; test top level
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
