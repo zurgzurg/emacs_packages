@@ -4,6 +4,7 @@
 (defvar rs-test-cur-buffer nil)
 (defvar rs-test-cur-proc nil)
 (defvar rs-test-log-buffer nil)
+(defvar rs-test-log-marker nil)
 
 (defvar rs-test-prog "/home/CORP/rbhamidipaty/lib_emacs/rs-test-gen.py")
 
@@ -13,20 +14,29 @@
 				rs-test-cur-buffer rs-test-prog args))
   (rs-mode-test rs-test-cur-proc))
     
-
 (defun rs-test-teardown ()
+  (delete-process rs-test-cur-proc)
   (kill-buffer rs-test-cur-buffer))
 
-(defun rs-test-expect-buffer (str)
+(defun rs-test-expect-buffer (exp)
+  (while (eq (process-status rs-test-cur-proc) 'run)
+    (rs-test-log "waiting for process to finish")
+    (sit-for 0.1))
   (with-current-buffer rs-test-cur-buffer
-    (if (null (string-equal
-	       (buffer-substring (point-min) (point-max))
-	       str))
-	(throw 'mismatch nil))))
+    (let (act)
+      (setq act (buffer-substring (point-min) (point-max)))
+      (unless (string-equal act exp)
+	(rs-test-log "buffer check failed\nexpected:")
+	(print exp rs-test-log-marker)
+	(rs-test-log "actual:")
+	(print act rs-test-log-marker)
+	(throw 'mismatch nil)))))
 
 (defun rs-test-log (fmt &rest args)
   (with-current-buffer rs-test-log-buffer
-    (insert (apply 'format fmt args) "\n")))
+    (goto-char (point-max))
+    (insert (apply 'format fmt args) "\n")
+    (set-marker rs-test-log-marker (point-max))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; the tests
@@ -38,8 +48,9 @@
 
 (defun rs-test-test-02 ()
   (rs-test-setup "simple_send" "abc")
-  (rs-test-expect-buffer "abc")
-  (rs-test-teardown)
+  (unwind-protect
+      (rs-test-expect-buffer "abc")
+    (rs-test-teardown))
   t)
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -56,8 +67,10 @@
 (defun rs-test-run-tests (tlist)
   (setq rs-test-log-buffer (get-buffer-create "*rs-test-log*"))
   (with-current-buffer rs-test-log-buffer
-    (erase-buffer))
-  (rs-test-log "start test run")
+    (erase-buffer)
+    (setq rs-test-log-marker (make-marker))
+    (set-marker rs-test-log-marker (point-min)))
+  (rs-test-log "start test run %s" (current-time-string))
   (let (cur pass-list fail-list)
     (while tlist
       (setq cur (car tlist))
@@ -75,3 +88,5 @@
     (message "Test result: pass=%d fail=%d"
 	     (length (car result)) (length (cadr result)))))
 	     
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+(provide 'rs-test)

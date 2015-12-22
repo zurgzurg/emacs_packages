@@ -5,6 +5,7 @@
 ;;
 ;; pick up functions: serial-read-name serial-speed
 (require 'term)
+(require 'rs-test)
 
 ;;
 ;; debug support
@@ -105,6 +106,9 @@ Used to cleanup chunk output files.")
 		 :noquery t)))
     process))
 
+(defun rs-sentinel (proc event)
+  t)
+
 (defun rs-mode (port speed)
   "Major mode to interact with a serial port."
   (interactive (list (serial-read-name) (serial-read-speed)))
@@ -131,11 +135,12 @@ Used to cleanup chunk output files.")
     (use-local-map rs-mode-map)
 
     (set-process-filter p 'rs-filter)
+    (set-process-sentinel p 'rs-sentinel)
     (switch-to-buffer b)))
 
-(defun rs-mode-test (proc)
+(defun rs-mode-test (p)
   (let (b)
-    (setq b (process-buffer proc))
+    (setq b (process-buffer p))
     (set-buffer b)
     (kill-all-local-variables)
 
@@ -146,7 +151,7 @@ Used to cleanup chunk output files.")
 
     (setq rs-chunk-number 0)
     (setq rs-serial-port "test")
-    (setq rs-process proc)
+    (setq rs-process p)
 
     (setq major-mode 'rs-mode)
     (setq mode-name "RS")
@@ -154,7 +159,9 @@ Used to cleanup chunk output files.")
 	(setq rs-mode-map (rs-make-keymap)))
     (use-local-map rs-mode-map)
 
-    (set-process-filter proc 'rs-filter)))
+    (set-process-filter p 'rs-filter)
+    (set-process-sentinel p 'rs-sentinel)))
+
 
 (defun rs-buffer-is-rs-buffer-p ()
   (if rs-process
@@ -269,6 +276,7 @@ Resets chunking. Erases buffer and all saved chunks."
       t)))
 
 (defun rs-filter (proc string)
+  (rs-test-log "Got string:\n>%s<" string)
   (let (b w wlist want-display-update prev-point)
     (setq b (process-buffer proc))
     (when (buffer-live-p b)

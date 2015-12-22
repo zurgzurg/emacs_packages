@@ -1,12 +1,15 @@
+#!/usr/bin/python
 import sys
 
 def simple_send(argv):
     txt = argv.pop(0)
-    print txt
+    sys.stdout.write(txt)
     return
 
 def main():
     sys.argv.pop(0)
+    if len(sys.argv) == 0:
+        return
     cmd = sys.argv.pop(0)
     tbl = {
         "simple_send" : simple_send
