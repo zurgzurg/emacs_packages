@@ -74,6 +74,13 @@
     (rs-test-teardown))
   t)
 
+(defun rs-test-test-05 ()
+  (rs-test-setup "simple_send" "abc\r\ndef")
+  (unwind-protect
+      (rs-test-expect-buffer "abc\ndef")
+    (rs-test-teardown))
+  t)
+
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; test top level
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;

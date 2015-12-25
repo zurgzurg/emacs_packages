@@ -123,6 +123,7 @@ Used to cleanup chunk output files.")
     (make-local-variable 'rs-chunk-number)
     (make-local-variable 'rs-serial-port)
     (make-local-variable 'rs-process)
+    (make-local-variable 'rs-start-of-last-line)
 
     (setq rs-chunk-number 0)
     (setq rs-serial-port port)
@@ -242,41 +243,42 @@ Resets chunking. Erases buffer and all saved chunks."
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;
+;; buffer local vars to keep track of the insert
+;; point and handle carriage return and newline
+;; motion
+;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+(defvar rs-start-of-last-line nil)
+
+(defun rs-handle-insert (s)
+  (let (start idx to-insert ch)
+    (setq start 0)
+    (while (setq idx (string-match "\\([\b\r\n]\\)" s start))
+      (setq to-insert (substring s start idx))
+      (insert (substring s start idx))
+      (setq ch (aref s idx))
+      (cond
+       ((eql ch ?\b)
+	(delete-backward-char 1)
+	(setq start (+ 1 idx)))
+       ((eql ch ?\n)
+	(insert ch)
+	(setq start (+ 1 idx)))
+       ((eql ch ?\r)
+	(insert ch)
+	(setq start (+ 1 idx)))))
+    (insert (substring s start))))
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;
 ;;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 (defun rs-apply-insert-filters (s)
   ;(replace-regexp-in-string "\r" "" s))
   s)
 
-(defun rs-handle-insert (s)
-  (let (start idx)
-    (setq start 0)
-    (setq idx (string-match "\b" s start))
-    (while idx
-      (insert (substring s start idx))
-      (delete-backward-char 1)
-      (setq start (+ 1 idx))
-      (setq idx (string-match "\b" s start)))
-    (insert (substring s start))))
-
-(defun rs-handle-insert-2 (s)
-  (let (start idx ch)
-    (setq start 0)
-    (while (setq idx (string-match "\\([\b\r\n]\\)" s start))
-      (insert (substring s start idx))
-      (setq ch (aref s idx))
-      (cond
-       ((eql ch ?\b) ; backspace
-	(delete-backward-char 1)
-	(setq start (+ 1 idx)))
-       ((eql ch ?\r) ; carriage return
-	t)
-       ((eql ch ?\n) ; newline
-	t))
-      t)))
-
 (defun rs-filter (proc string)
-  (rs-test-log "Got string:\n>%s<" string)
+  ;(rs-test-log "Got string:\n>%s<" string)
   (let (b w wlist want-display-update prev-point)
     (setq b (process-buffer proc))
     (when (buffer-live-p b)
