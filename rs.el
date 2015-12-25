@@ -109,6 +109,20 @@ Used to cleanup chunk output files.")
 (defun rs-sentinel (proc event)
   t)
 
+(defun rs-mode-make-local-vars ()
+    ;; define all the buffer local rs-mode variables
+    (make-local-variable 'rs-chunk-number)
+    (make-local-variable 'rs-serial-port)
+    (make-local-variable 'rs-process)
+    (make-local-variable 'rs-start-of-last-line))
+
+(defun rs-mode-set-major-and-mode-map ()
+    (setq major-mode 'rs-mode)
+    (setq mode-name "RS")
+    (if (null rs-mode-map)
+	(setq rs-mode-map (rs-make-keymap)))
+    (use-local-map rs-mode-map))
+
 (defun rs-mode (port speed)
   "Major mode to interact with a serial port."
   (interactive (list (serial-read-name) (serial-read-speed)))
@@ -118,22 +132,14 @@ Used to cleanup chunk output files.")
 
     (set-buffer b)
     (kill-all-local-variables)
-
-    ;; define all the buffer local rs-mode variables
-    (make-local-variable 'rs-chunk-number)
-    (make-local-variable 'rs-serial-port)
-    (make-local-variable 'rs-process)
-    (make-local-variable 'rs-start-of-last-line)
+    (rs-mode-make-local-vars)
+    (setq rs-start-of-last-line (point-min))
 
     (setq rs-chunk-number 0)
     (setq rs-serial-port port)
     (setq rs-process p)
 
-    (setq major-mode 'rs-mode)
-    (setq mode-name "RS")
-    (if (null rs-mode-map)
-	(setq rs-mode-map (rs-make-keymap)))
-    (use-local-map rs-mode-map)
+    (rs-mode-set-major-and-mode-map)
 
     (set-process-filter p 'rs-filter)
     (set-process-sentinel p 'rs-sentinel)
@@ -142,23 +148,17 @@ Used to cleanup chunk output files.")
 (defun rs-mode-test (p)
   (let (b)
     (setq b (process-buffer p))
+
     (set-buffer b)
     (kill-all-local-variables)
-
-    ;; define all the buffer local rs-mode variables
-    (make-local-variable 'rs-chunk-number)
-    (make-local-variable 'rs-serial-port)
-    (make-local-variable 'rs-process)
+    (rs-mode-make-local-vars)
+    (setq rs-start-of-last-line (point-min))
 
     (setq rs-chunk-number 0)
     (setq rs-serial-port "test")
     (setq rs-process p)
 
-    (setq major-mode 'rs-mode)
-    (setq mode-name "RS")
-    (if (null rs-mode-map)
-	(setq rs-mode-map (rs-make-keymap)))
-    (use-local-map rs-mode-map)
+    (rs-mode-set-major-and-mode-map)
 
     (set-process-filter p 'rs-filter)
     (set-process-sentinel p 'rs-sentinel)))
@@ -250,23 +250,40 @@ Resets chunking. Erases buffer and all saved chunks."
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 (defvar rs-start-of-last-line nil)
 
+(defun rs-log (fmt &rest args)
+  (if nil
+      (rs-test-log fmt args)))
+
 (defun rs-handle-insert (s)
-  (let (start idx to-insert ch)
+  (rs-log "got string: <%s>" (prin1-to-string s))
+  (let (start idx to-insert ch tmp)
     (setq start 0)
     (while (setq idx (string-match "\\([\b\r\n]\\)" s start))
       (setq to-insert (substring s start idx))
-      (insert (substring s start idx))
+
+      (setq tmp (substring s start idx))
+      (rs-log "doing insert: %s" (prin1-to-string tmp))
+      (insert tmp)
+
       (setq ch (aref s idx))
       (cond
+
        ((eql ch ?\b)
 	(delete-backward-char 1)
 	(setq start (+ 1 idx)))
+
        ((eql ch ?\n)
+	(goto-char (point-max))
 	(insert ch)
+	(setq rs-start-of-last-line (point))
+	(rs-log "after newline line start is: %d" rs-start-of-last-line)
 	(setq start (+ 1 idx)))
+
        ((eql ch ?\r)
-	(insert ch)
+	(goto-char rs-start-of-last-line)
+	(rs-log "got cr : moving to %d" rs-start-of-last-line)
 	(setq start (+ 1 idx)))))
+
     (insert (substring s start))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -278,7 +295,7 @@ Resets chunking. Erases buffer and all saved chunks."
   s)
 
 (defun rs-filter (proc string)
-  ;(rs-test-log "Got string:\n>%s<" string)
+  ;(rs-log "Got string:\n>%s<" string)
   (let (b w wlist want-display-update prev-point)
     (setq b (process-buffer proc))
     (when (buffer-live-p b)

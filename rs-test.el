@@ -19,6 +19,7 @@
   (kill-buffer rs-test-cur-buffer))
 
 (defun rs-test-expect-buffer (exp)
+  (sit-for 0.1)
   (while (eq (process-status rs-test-cur-proc) 'run)
     (rs-test-log "waiting for process to finish")
     (sit-for 0.1))
@@ -74,10 +75,24 @@
     (rs-test-teardown))
   t)
 
-(defun rs-test-test-05 ()
-  (rs-test-setup "simple_send" "abc\r\ndef")
+(defun rs-test-test-06 ()
+  (rs-test-setup "simple_send" "abc\r\ndef\r\ndef\r\ndef")
+  (unwind-protect
+      (rs-test-expect-buffer "abc\ndef\ndef\ndef")
+    (rs-test-teardown))
+  t)
+
+(defun rs-test-test-07 ()
+  (rs-test-setup "simple_send" "abc\n\rdef")
   (unwind-protect
       (rs-test-expect-buffer "abc\ndef")
+    (rs-test-teardown))
+  t)
+
+(defun rs-test-test-08 ()
+  (rs-test-setup "simple_send" "1\r\n2\r\n3\r\n4\r\n5\r\n6\r\n")
+  (unwind-protect
+      (rs-test-expect-buffer "1\n2\n3\n4\n5\n6\n")
     (rs-test-teardown))
   t)
 
