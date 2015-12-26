@@ -263,7 +263,10 @@ Resets chunking. Erases buffer and all saved chunks."
 
       (setq tmp (substring s start idx))
       (rs-log "doing insert: %s" (prin1-to-string tmp))
-      (insert tmp)
+      (if (eql (point) (point-max))
+	  (insert tmp)
+	(delete-char (length tmp))
+	(insert tmp))
 
       (setq ch (aref s idx))
       (cond
