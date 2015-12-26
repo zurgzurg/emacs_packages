@@ -252,7 +252,7 @@ Resets chunking. Erases buffer and all saved chunks."
 
 (defun rs-log (fmt &rest args)
   (if nil
-      (rs-test-log fmt args)))
+      (apply 'rs-test-log fmt args)))
 
 (defun rs-handle-insert (s)
   (rs-log "got string: <%s>" (prin1-to-string s))
@@ -262,7 +262,9 @@ Resets chunking. Erases buffer and all saved chunks."
       (setq to-insert (substring s start idx))
 
       (setq tmp (substring s start idx))
-      (rs-log "doing insert: %s" (prin1-to-string tmp))
+      (rs-log "doing insert %s %s"
+	      (eql (point) (point-max)) tmp)
+
       (if (eql (point) (point-max))
 	  (insert tmp)
 	(delete-char (length tmp))
