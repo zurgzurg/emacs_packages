@@ -103,6 +103,13 @@
     (rs-test-teardown))
   t)
 
+(defun rs-test-test-10 ()
+  (rs-test-setup "simple_send" "line1\r\nline2\r\nline3\rline4\rline5\r\n")
+  (unwind-protect
+      (rs-test-expect-buffer "line1\nline2\nline5\n")
+    (rs-test-teardown))
+  t)
+
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; test top level
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
