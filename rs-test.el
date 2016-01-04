@@ -110,6 +110,25 @@
     (rs-test-teardown))
   t)
 
+;; data from tftp xfer
+;; got string: <"Err = 0
+;;               Cmd: nand erase.part Active
+;;               
+;;               NAND erase.part: device ">
+;; got string: <"0 offset 0x6280000, size 0x60000">
+;; got string: <"00
+;;               Erasing at 0x6280000 --   0% complete.">
+;; got string: <"Erasing at 0x6340000 --   1% complete.">
+;; got string: <"Erasing at 0x6440000 --   2% complete.">
+;; got string: <"Erasing at 0x6540000 --   3% complete.">
+
+(defun rs-test-test-11 ()
+  (rs-test-setup "simple_send" "NAND erase.part: device 0 offset 0x6280000, size 0x6000000\r\n\rErasing at 0x6280000 --   0% complete.\rErasing at 0x6280000 --   1% complete.")
+  (unwind-protect
+      (rs-test-expect-buffer "NAND erase.part: device 0 offset 0x6280000, size 0x6000000\nErasing at 0x6280000 --   1% complete.")
+    (rs-test-teardown))
+  t)
+
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; test top level
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;

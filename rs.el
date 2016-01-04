@@ -59,6 +59,9 @@ Used to cleanup chunk output files.")
 (defvar rs-process nil
   "The process object - really just the serial port.")
 
+(defvar rs-insert-pos nil
+  "Place where text will be inserted.")
+
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; mode def
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -114,7 +117,8 @@ Used to cleanup chunk output files.")
     (make-local-variable 'rs-chunk-number)
     (make-local-variable 'rs-serial-port)
     (make-local-variable 'rs-process)
-    (make-local-variable 'rs-start-of-last-line))
+    (make-local-variable 'rs-start-of-last-line)
+    (make-local-variable 'rs-insert-pos))
 
 (defun rs-mode-set-major-and-mode-map ()
     (setq major-mode 'rs-mode)
@@ -135,6 +139,7 @@ Used to cleanup chunk output files.")
     (rs-mode-make-local-vars)
     (setq rs-start-of-last-line (point-min))
 
+    (setq rs-insert-pos 1)
     (setq rs-chunk-number 0)
     (setq rs-serial-port port)
     (setq rs-process p)
@@ -154,6 +159,7 @@ Used to cleanup chunk output files.")
     (rs-mode-make-local-vars)
     (setq rs-start-of-last-line (point-min))
 
+    (setq rs-insert-pos 1)
     (setq rs-chunk-number 0)
     (setq rs-serial-port "test")
     (setq rs-process p)
@@ -251,22 +257,22 @@ Resets chunking. Erases buffer and all saved chunks."
 (defvar rs-start-of-last-line nil)
 
 (defun rs-log (fmt &rest args)
-  (if nil
+  (if t
       (apply 'rs-test-log fmt args)))
 
 (defun rs-handle-insert (s)
   (rs-log "got string: <%s>" (prin1-to-string s))
-  (let (start idx to-insert ch tmp)
+  (let (start idx ch tmp)
     (setq start 0)
     (while (setq idx (string-match "\\([\b\r\n]\\)" s start))
-      (setq to-insert (substring s start idx))
 
       (setq tmp (substring s start idx))
-      (rs-log "doing insert %s %s"
-	      (eql (point) (point-max)) tmp)
+      (rs-log "doing insert idx=%d p=%d pm=%d %s"
+	      idx (point) (point-max) tmp)
 
       (if (eql (point) (point-max))
 	  (insert tmp)
+	(rs-log "deleting %d chars" (length tmp))
 	(delete-char (length tmp))
 	(insert tmp))
 
@@ -289,7 +295,15 @@ Resets chunking. Erases buffer and all saved chunks."
 	(rs-log "got cr : moving to %d" rs-start-of-last-line)
 	(setq start (+ 1 idx)))))
 
-    (insert (substring s start))))
+    (setq tmp (substring s start))
+    (rs-log "doing insert2 p=%d pm=%d %s"
+	    (point) (point-max) tmp)
+
+    (if (eql (point) (point-max))
+	(insert tmp)
+      (rs-log "deleting2 %d chars" (length tmp))
+      (delete-char (length tmp))
+      (insert tmp))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;
@@ -314,8 +328,9 @@ Resets chunking. Erases buffer and all saved chunks."
 	    (setq want-display-update t)))
 
 	(save-excursion
-	  (goto-char (point-max))
-	  (rs-handle-insert (rs-apply-insert-filters string)))
+	  (goto-char rs-insert-pos)
+	  (rs-handle-insert (rs-apply-insert-filters string))
+	  (setq rs-insert-pos (point)))
 
 	(if (and (numberp rs-chunk-size) (>= (point-max) rs-chunk-size))
 	    (rs-do-chunk-output))
