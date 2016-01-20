@@ -257,7 +257,7 @@ Resets chunking. Erases buffer and all saved chunks."
 (defvar rs-start-of-last-line nil)
 
 (defun rs-log (fmt &rest args)
-  (if t
+  (if nil
       (apply 'rs-test-log fmt args)))
 
 (defun rs-handle-insert (s)
@@ -286,13 +286,14 @@ Resets chunking. Erases buffer and all saved chunks."
        ((eql ch ?\n)
 	(goto-char (point-max))
 	(insert ch)
-	(setq rs-start-of-last-line (point))
-	(rs-log "after newline line start is: %d" rs-start-of-last-line)
+	;(setq rs-start-of-last-line (point))
+	;(rs-log "after newline line start is: %d" rs-start-of-last-line)
 	(setq start (+ 1 idx)))
 
        ((eql ch ?\r)
-	(goto-char rs-start-of-last-line)
-	(rs-log "got cr : moving to %d" rs-start-of-last-line)
+	(beginning-of-line)
+	;(goto-char rs-start-of-last-line)
+	;(rs-log "got cr : moving to %d" rs-start-of-last-line)
 	(setq start (+ 1 idx)))))
 
     (setq tmp (substring s start))
