@@ -117,7 +117,6 @@ Used to cleanup chunk output files.")
     (make-local-variable 'rs-chunk-number)
     (make-local-variable 'rs-serial-port)
     (make-local-variable 'rs-process)
-    (make-local-variable 'rs-start-of-last-line)
     (make-local-variable 'rs-insert-pos))
 
 (defun rs-mode-set-major-and-mode-map ()
@@ -137,7 +136,6 @@ Used to cleanup chunk output files.")
     (set-buffer b)
     (kill-all-local-variables)
     (rs-mode-make-local-vars)
-    ;(setq rs-start-of-last-line (point-min))
 
     (setq rs-insert-pos 1)
     (setq rs-chunk-number 0)
@@ -157,7 +155,6 @@ Used to cleanup chunk output files.")
     (set-buffer b)
     (kill-all-local-variables)
     (rs-mode-make-local-vars)
-    ;(setq rs-start-of-last-line (point-min))
 
     (setq rs-insert-pos 1)
     (setq rs-chunk-number 0)
@@ -254,8 +251,6 @@ Resets chunking. Erases buffer and all saved chunks."
 ;; motion
 ;;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-(defvar rs-start-of-last-line nil)
-
 (defun rs-log (fmt &rest args)
   (if nil
       (apply 'rs-test-log fmt args)))
@@ -286,14 +281,10 @@ Resets chunking. Erases buffer and all saved chunks."
        ((eql ch ?\n)
 	(goto-char (point-max))
 	(insert ch)
-	;(setq rs-start-of-last-line (point))
-	;(rs-log "after newline line start is: %d" rs-start-of-last-line)
 	(setq start (+ 1 idx)))
 
        ((eql ch ?\r)
 	(beginning-of-line)
-	;(goto-char rs-start-of-last-line)
-	;(rs-log "got cr : moving to %d" rs-start-of-last-line)
 	(setq start (+ 1 idx)))))
 
     (setq tmp (substring s start))
