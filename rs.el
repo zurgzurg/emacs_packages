@@ -251,13 +251,22 @@ Resets chunking. Erases buffer and all saved chunks."
 ;; motion
 ;;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+(defun rs-enable-debug ()
+  (setq rs-test-log-buffer (get-buffer-create "*rs-test-log*"))
+  (with-current-buffer rs-test-log-buffer
+    (erase-buffer)
+    (setq rs-test-log-marker (make-marker))
+    (set-marker rs-test-log-marker (point-min))))
+
 (defun rs-log (fmt &rest args)
-  (if nil
-      (apply 'rs-test-log fmt args)))
+  (when t
+    (if (null rs-test-log-buffer)
+	(rs-enable-debug))
+    (apply 'rs-test-log fmt args)))
 
 (defun rs-handle-insert (s)
   (rs-log "got string: <%s>" (prin1-to-string s))
-  (let (start idx ch tmp)
+  (let (start idx ch tmp n-erase)
     (setq start 0)
     (while (setq idx (string-match "\\([\b\r\n]\\)" s start))
 
@@ -293,8 +302,9 @@ Resets chunking. Erases buffer and all saved chunks."
 
     (if (eql (point) (point-max))
 	(insert tmp)
-      (rs-log "deleting2 %d chars" (length tmp))
-      (delete-char (length tmp))
+      (setq n-erase (min (- (point-max) (point)) (length tmp)))
+      (rs-log "deleting2 %d chars" n-erase)
+      (delete-char n-erase)
       (insert tmp))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
