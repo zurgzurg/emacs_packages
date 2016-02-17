@@ -77,10 +77,6 @@ Used to cleanup chunk output files.")
   ;(message "sent newline : %s" (prin1-to-string rs-process))
   t)
 
-(defun rs-send-intr ()
-  (interactive)
-  t)
-
 (defun rs-make-keymap ()
   (let (m code)
     (setq m (make-sparse-keymap))
