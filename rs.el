@@ -259,7 +259,7 @@ Resets chunking. Erases buffer and all saved chunks."
     (set-marker rs-test-log-marker (point-min))))
 
 (defun rs-log (fmt &rest args)
-  (when t
+  (when nil
     (if (null rs-test-log-buffer)
 	(rs-enable-debug))
     (apply 'rs-test-log fmt args)))
