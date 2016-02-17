@@ -175,6 +175,41 @@ Used to cleanup chunk output files.")
     (kill-buffer b)))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; marking output
+;; when looking at serial output allow the user
+;; to 'mark' the output. For example if viewing
+;; the serial output from an embedded device
+;; this mode can be used to indicate when the
+;; device does something interesting.
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+(defun rs-make-mark-output-keymap ()
+  (let (m)
+    (setq m (make-sparse-keymap))
+    (set-keymap-parent m rs-mode-map)
+    (define-key m " " 'rs-mark-output)
+    (define-key m "q" 'rs-mark-quit)
+    m))
+
+(defun rs-mark-output ()
+  "Add a text to the buffer to indicate when the user pressed the space bar."
+  (interactive)
+  (save-excursion
+    (goto-char rs-insert-pos)
+    (insert "\n#######################################\n###               mark              ###\n#######################################\n")
+    (setq rs-insert-pos (point)))
+  t)
+
+(defun rs-mark-quit ()
+    "Turn off mark mode."
+  (interactive)
+  (use-local-map rs-mode-map))
+
+(defun rs-mark-start ()
+  "Turn on mark mode."
+  (interactive)
+  (use-local-map (rs-make-mark-output-keymap)))
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;
 ;; color escape sequences
 ;;
