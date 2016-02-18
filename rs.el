@@ -2,6 +2,20 @@
 ;; ram serial mode
 ;;
 
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;
+;; TO DO
+;;
+;; Limit the total number of overflow chunks that are saved on
+;; disk.
+;;
+;; Add support for 'yank' when sending output to serial port.
+;;
+;; Maybe find a way to add expect style functionality
+;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
 ;;
 ;; pick up functions: serial-read-name serial-speed
 (require 'term)
@@ -63,7 +77,9 @@ Used to cleanup chunk output files.")
   "Place where text will be inserted.")
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;; mode def
+;;
+;; keymap setup + main interactive key functions
+;;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 (defun rs-self-insert ()
   (interactive)
@@ -77,6 +93,11 @@ Used to cleanup chunk output files.")
   ;(message "sent newline : %s" (prin1-to-string rs-process))
   t)
 
+(defun rs-yank ()
+  (interactive)
+  (process-send-string rs-process (current-kill 0))
+  t)
+
 (defun rs-make-keymap ()
   (let (m code)
     (setq m (make-sparse-keymap))
@@ -88,6 +109,7 @@ Used to cleanup chunk output files.")
     (define-key m " " 'rs-self-insert)
     (define-key m (kbd "C-m") 'rs-newline)
     (define-key m "\d" 'rs-self-insert)
+    (define-key m "\C-y" 'rs-yank)
     m))
 
 (defun rs-update-keymap ()
@@ -95,6 +117,9 @@ Used to cleanup chunk output files.")
   (setq rs-mode-map (rs-make-keymap))
   (use-local-map rs-mode-map))
 
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; mode def
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 (defun rs-setup-serial-port (port speed)
   "Start ram serial mode."
   (let
@@ -175,7 +200,9 @@ Used to cleanup chunk output files.")
     (kill-buffer b)))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;
 ;; marking output
+;;
 ;; when looking at serial output allow the user
 ;; to 'mark' the output. For example if viewing
 ;; the serial output from an embedded device
@@ -277,9 +304,7 @@ Resets chunking. Erases buffer and all saved chunks."
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;
-;; buffer local vars to keep track of the insert
-;; point and handle carriage return and newline
-;; motion
+;; debug and logging
 ;;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 (defun rs-enable-debug ()
@@ -295,6 +320,11 @@ Resets chunking. Erases buffer and all saved chunks."
 	(rs-enable-debug))
     (apply 'rs-test-log fmt args)))
 
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;
+;; primary insert routine
+;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 (defun rs-handle-insert (s)
   (rs-log "got string: <%s>" (prin1-to-string s))
   (let (start idx ch tmp n-erase)
