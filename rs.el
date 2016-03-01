@@ -10,8 +10,6 @@
 ;; Limit the total number of overflow chunks that are saved on
 ;; disk.
 ;;
-;; Add support for 'yank' when sending output to serial port.
-;;
 ;; Maybe find a way to add expect style functionality
 ;;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -95,7 +93,16 @@ Used to cleanup chunk output files.")
 
 (defun rs-yank ()
   (interactive)
-  (process-send-string rs-process (current-kill 0))
+  (let (idx1 idx2 str str-len)
+    (setq str (current-kill 0))
+    (setq str-len (length str))
+    (setq idx1 0)
+    (setq idx2 (min (+ idx1 4) str-len))
+    (while (< idx1 str-len)
+      (process-send-string rs-process (substring str idx1 idx2))
+      (sit-for 0.050)
+      (setq idx1 idx2)
+      (setq idx2 (min (+ idx1 4) str-len))))
   t)
 
 (defun rs-make-keymap ()
