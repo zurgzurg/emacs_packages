@@ -129,6 +129,65 @@
     (rs-test-teardown))
   t)
 
+(defun rs-test-test-12 ()
+  (rs-test-setup "simple_send" "text\e[1mother\e[0m")
+  (unwind-protect
+      (rs-test-expect-buffer "textother")
+    (rs-test-teardown))
+  t)
+
+(defun rs-test-test-13 ()
+  (rs-test-setup "simple_send" "text\e[1;2;3mother\e[0m")
+  (unwind-protect
+      (rs-test-expect-buffer "textother")
+    (rs-test-teardown))
+  t)
+
+(defun rs-test-test-14 ()
+  (rs-test-setup "simple_send" "text\e[1;42;3mother\e[0m")
+  (unwind-protect
+      (rs-test-expect-buffer "textother")
+    (rs-test-teardown))
+  t)
+
+(defun rs-test-test-15 ()
+  (rs-test-setup "simple_send" "a\e[1mb\e[0mc\e[1md\e[0m")
+  (unwind-protect
+      (rs-test-expect-buffer "abcd")
+    (rs-test-teardown))
+  t)
+
+(defun rs-test-test-16 ()
+  (rs-test-setup "simple_send"
+		 "[0;0mautostart[0m           [0;0mhostname[0m            [1;36mozmo[0m")
+  (unwind-protect
+      (rs-test-expect-buffer "autostart           hostname            ozmo")
+    (rs-test-teardown))
+  t)
+
+(defun rs-test-test-17 ()
+  (rs-test-setup "seq_send"
+		 "[1;34mNetfl"
+		 "ix[0m/ [1"
+		 ";34mcommon["
+		 "0m/  [1;34"
+		 "mdev[0m/ ")
+  (unwind-protect
+      (rs-test-expect-buffer "Netflix/ common/  dev/ ")
+    (rs-test-teardown))
+  t)
+
+
+(defun rs-test-test-18 ()
+  (rs-test-setup "seq_send"
+		 "[1;34"
+		 "mNetfl"
+		 "ix[0m/" )
+  (unwind-protect
+      (rs-test-expect-buffer "Netflix/")
+    (rs-test-teardown))
+  t)
+
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; test top level
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;

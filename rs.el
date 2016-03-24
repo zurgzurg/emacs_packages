@@ -113,6 +113,7 @@ Used to cleanup chunk output files.")
       (define-key m (byte-to-string code) 'rs-self-insert)
       (setq code (+ 1 code)))
     (define-key m "\C-c\C-c" 'rs-self-insert)
+    (define-key m "\C-c\C-z" 'rs-self-insert)
     (define-key m " " 'rs-self-insert)
     (define-key m (kbd "C-m") 'rs-newline)
     (define-key m "\d" 'rs-self-insert)
@@ -141,11 +142,12 @@ Used to cleanup chunk output files.")
   t)
 
 (defun rs-mode-make-local-vars ()
-    ;; define all the buffer local rs-mode variables
-    (make-local-variable 'rs-chunk-number)
-    (make-local-variable 'rs-serial-port)
-    (make-local-variable 'rs-process)
-    (make-local-variable 'rs-insert-pos))
+  ;; define all the buffer local rs-mode variables
+  (make-local-variable 'rs-pending-escape-sequence-start)
+  (make-local-variable 'rs-chunk-number)
+  (make-local-variable 'rs-serial-port)
+  (make-local-variable 'rs-process)
+  (make-local-variable 'rs-insert-pos))
 
 (defun rs-mode-set-major-and-mode-map ()
     (setq major-mode 'rs-mode)
@@ -165,6 +167,7 @@ Used to cleanup chunk output files.")
     (kill-all-local-variables)
     (rs-mode-make-local-vars)
 
+    (setq rs-pending-escape-sequence-start nil)
     (setq rs-insert-pos 1)
     (setq rs-chunk-number 0)
     (setq rs-serial-port port)
@@ -184,6 +187,7 @@ Used to cleanup chunk output files.")
     (kill-all-local-variables)
     (rs-mode-make-local-vars)
 
+    (setq rs-pending-escape-sequence-start nil)
     (setq rs-insert-pos 1)
     (setq rs-chunk-number 0)
     (setq rs-serial-port "test")
@@ -257,19 +261,55 @@ Used to cleanup chunk output files.")
 ;;  7 - white
 ;;  9 - default
 ;;
-;; [ 0 m       reset all attributes
-;; [ 1 m       set bold/bright attribute
-;; [ 2 m       set dim attribute
+;; ESC [ 0 m       reset all attributes
+;; ESC [ 1 m       set bold/bright attribute
+;; ESC [ 2 m       set dim attribute
 ;;
-;; [ 4 m       set underline attribute
-;; [ 5 m       set blink attribute
-;; [ 7 m       set reverse attribute
-;; [ 8 m       set hidden attribute
+;; ESC [ 4 m       set underline attribute
+;; ESC [ 5 m       set blink attribute
+;; ESC [ 7 m       set reverse attribute
+;; ESC [ 8 m       set hidden attribute
 ;;
-;; [ 3 <#> m   set foreground to color <#>
-;; [ 4 <#> m   set background to color <#>
+;; ESC [ 3 <#> m   set foreground to color <#>
+;; ESC [ 4 <#> m   set background to color <#>
 ;;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+(defun rs-handle-color-escape (pending-pos insert-pos cur-point)
+  (let (start-pos num-codes char-code n)
+    (if pending-pos
+	(setq start-pos pending-pos)
+      (setq start-pos insert-pos))
+    (goto-char start-pos)
+    (while (and (< start-pos cur-point)
+		(re-search-forward "\e\\[" cur-point t))
+      (setq start-pos (match-beginning 0))
+      ;;
+      ;; in general an escape sequence will look like this
+      ;; <esc> [ <num> ; <num> ; ... ; <num> <char code>
+      ;;
+      ;; parse the params
+      ;;
+      (setq done nil)
+      (while (null done)
+	(cond
+	 ((looking-at "[0-9]+")
+	  (setq num-codes (cons (read (match-string 0)) num-codes))
+	  (goto-char (match-end 0)))
+	 ((looking-at ";")
+	  (forward-char 1))
+	 (t
+	  (setq char-code (buffer-substring (point) (+ (point) 1)))
+	  (forward-char 1)
+	  (setq done t))))
+
+      (setq n (- (point) start-pos))
+      (delete-region start-pos (point))
+      (setq start-pos (point))
+
+      ;; manually keep track of cur-point - not very elegent might
+      ;; be better to use a marker later on
+      (setq cur-point (- cur-point n)))
+    cur-point))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; file chunking
@@ -289,8 +329,8 @@ Used to cleanup chunk output files.")
     (erase-buffer)
     t))
 
-(debug-on-entry 'rs-do-chunk-output)
-(cancel-debug-on-entry 'rs-do-chunk-output)
+;(debug-on-entry 'rs-do-chunk-output)
+;(cancel-debug-on-entry 'rs-do-chunk-output)
 
 (defun rs-reset ()
   "Reset mode.
@@ -322,7 +362,7 @@ Resets chunking. Erases buffer and all saved chunks."
     (set-marker rs-test-log-marker (point-min))))
 
 (defun rs-log (fmt &rest args)
-  (when nil
+  (when t
     (if (null rs-test-log-buffer)
 	(rs-enable-debug))
     (apply 'rs-test-log fmt args)))
@@ -379,10 +419,6 @@ Resets chunking. Erases buffer and all saved chunks."
 ;;
 ;;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-(defun rs-apply-insert-filters (s)
-  ;(replace-regexp-in-string "\r" "" s))
-  s)
-
 (defun rs-filter (proc string)
   ;(rs-log "Got string:\n>%s<" string)
   (let (b w wlist want-display-update prev-point)
@@ -399,8 +435,11 @@ Resets chunking. Erases buffer and all saved chunks."
 
 	(save-excursion
 	  (goto-char rs-insert-pos)
-	  (rs-handle-insert (rs-apply-insert-filters string))
-	  (setq rs-insert-pos (point)))
+	  (rs-handle-insert string)
+	  (setq rs-insert-pos
+		(rs-handle-color-escape rs-pending-escape-sequence-start
+					rs-insert-pos
+					(point))))
 
 	(if (and (numberp rs-chunk-size) (>= (point-max) rs-chunk-size))
 	    (rs-do-chunk-output))

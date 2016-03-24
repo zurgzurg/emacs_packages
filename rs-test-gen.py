@@ -17,6 +17,11 @@ def count_lines(argv):
         n += 1
     return
     
+def seq_send(argv):
+    while argv:
+        txt = argv.pop(0)
+        sys.stdout.write(txt)
+    return
 
 def main():
     sys.argv.pop(0)
@@ -26,6 +31,7 @@ def main():
     tbl = {
         "simple_send" : simple_send,
         "count_lines" : count_lines,
+        "seq_send"    : seq_send,
     }
     if cmd not in tbl:
         sys.exit(0)
