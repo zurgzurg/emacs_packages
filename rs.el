@@ -312,6 +312,8 @@ Used to cleanup chunk output files.")
 	(setq cur-point (- cur-point n))
 	(setq pending-pos nil))
 
+      (setq num-codes nil)
+      (setq char-code nil)
       (setq start-pos (point)))
 
     (list cur-point pending-pos)))
@@ -438,7 +440,7 @@ Resets chunking. Erases buffer and all saved chunks."
 	    (setq want-display-update t)))
 
 	(save-excursion
-	  (rs-log "insert=%s pending=%s" rs-insert-pos rs-pending-escape-sequence-start)
+	  (rs-log "\ninsert=%s pending=%s" rs-insert-pos rs-pending-escape-sequence-start)
 	  (goto-char rs-insert-pos)
 	  (rs-handle-insert string)
 	  (rs-log "point now %s" (point))

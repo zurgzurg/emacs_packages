@@ -195,6 +195,13 @@
     (rs-test-teardown))
   t)
 
+(defun rs-test-test-20 ()
+  (rs-test-setup "simple_send" "ix[0m/ [1")
+  (unwind-protect
+      (rs-test-expect-buffer "ix/ [1")
+    (rs-test-teardown))
+  t)
+
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; test top level
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
