@@ -1,5 +1,6 @@
 #!/usr/bin/python
 import sys
+import time
 
 def simple_send(argv):
     txt = argv.pop(0)
@@ -21,6 +22,8 @@ def seq_send(argv):
     while argv:
         txt = argv.pop(0)
         sys.stdout.write(txt)
+        sys.stdout.flush()
+        time.sleep(0.1)
     return
 
 def main():

@@ -283,6 +283,7 @@ Used to cleanup chunk output files.")
     (while (and (< start-pos cur-point)
 		(re-search-forward "\e\\[" cur-point t))
       (setq start-pos (match-beginning 0))
+      (setq pending-pos start-pos)
       ;;
       ;; in general an escape sequence will look like this
       ;; <esc> [ <num> ; <num> ; ... ; <num> <char code>
@@ -290,7 +291,7 @@ Used to cleanup chunk output files.")
       ;; parse the params
       ;;
       (setq done nil)
-      (while (null done)
+      (while (and (< (point) cur-point) (null done))
 	(cond
 	 ((looking-at "[0-9]+")
 	  (setq num-codes (cons (read (match-string 0)) num-codes))
@@ -302,14 +303,18 @@ Used to cleanup chunk output files.")
 	  (forward-char 1)
 	  (setq done t))))
 
-      (setq n (- (point) start-pos))
-      (delete-region start-pos (point))
-      (setq start-pos (point))
+      (when (string-equal char-code "m")
+	(setq n (- (point) start-pos))
+	(delete-region start-pos (point))
+	(setq start-pos (point))
+	;; manually keep track of cur-point - not very elegent might
+	;; be better to use a marker later on
+	(setq cur-point (- cur-point n))
+	(setq pending-pos nil))
 
-      ;; manually keep track of cur-point - not very elegent might
-      ;; be better to use a marker later on
-      (setq cur-point (- cur-point n)))
-    cur-point))
+      (setq start-pos (point)))
+
+    (list cur-point pending-pos)))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; file chunking
@@ -420,8 +425,7 @@ Resets chunking. Erases buffer and all saved chunks."
 ;;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 (defun rs-filter (proc string)
-  ;(rs-log "Got string:\n>%s<" string)
-  (let (b w wlist want-display-update prev-point)
+  (let (b w wlist want-display-update prev-point tmp)
     (setq b (process-buffer proc))
     (when (buffer-live-p b)
       (with-current-buffer b
@@ -434,12 +438,17 @@ Resets chunking. Erases buffer and all saved chunks."
 	    (setq want-display-update t)))
 
 	(save-excursion
+	  (rs-log "insert=%s pending=%s" rs-insert-pos rs-pending-escape-sequence-start)
 	  (goto-char rs-insert-pos)
 	  (rs-handle-insert string)
-	  (setq rs-insert-pos
+	  (rs-log "point now %s" (point))
+	  (setq tmp
 		(rs-handle-color-escape rs-pending-escape-sequence-start
 					rs-insert-pos
-					(point))))
+					(point)))
+	  (rs-log "color return %s" tmp)
+	  (setq rs-insert-pos (car tmp))
+	  (setq rs-pending-escape-sequence-start (cadr tmp)))
 
 	(if (and (numberp rs-chunk-size) (>= (point-max) rs-chunk-size))
 	    (rs-do-chunk-output))

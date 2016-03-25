@@ -188,6 +188,13 @@
     (rs-test-teardown))
   t)
 
+(defun rs-test-test-19 ()
+  (rs-test-setup "simple_send" "a\e[")
+  (unwind-protect
+      (rs-test-expect-buffer "a\e[")
+    (rs-test-teardown))
+  t)
+
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; test top level
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
