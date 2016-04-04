@@ -202,6 +202,20 @@
     (rs-test-teardown))
   t)
 
+(defun rs-test-test-21 ()
+  (rs-test-setup "simple_send" "foo[J")
+  (unwind-protect
+      (rs-test-expect-buffer "fo")
+    (rs-test-teardown))
+  t)
+
+(defun rs-test-test-22 ()
+  (rs-test-setup "simple_send" "foo[J[J")
+  (unwind-protect
+      (rs-test-expect-buffer "f")
+    (rs-test-teardown))
+  t)
+
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; test top level
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;

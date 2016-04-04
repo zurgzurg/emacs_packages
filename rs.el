@@ -147,7 +147,8 @@ Used to cleanup chunk output files.")
   (make-local-variable 'rs-chunk-number)
   (make-local-variable 'rs-serial-port)
   (make-local-variable 'rs-process)
-  (make-local-variable 'rs-insert-pos))
+  (make-local-variable 'rs-insert-pos)
+  (make-local-variable 'rs-log-rx))
 
 (defun rs-mode-set-major-and-mode-map ()
     (setq major-mode 'rs-mode)
@@ -172,6 +173,7 @@ Used to cleanup chunk output files.")
     (setq rs-chunk-number 0)
     (setq rs-serial-port port)
     (setq rs-process p)
+    (setq rs-log-rx nil)
 
     (rs-mode-set-major-and-mode-map)
 
@@ -192,6 +194,7 @@ Used to cleanup chunk output files.")
     (setq rs-chunk-number 0)
     (setq rs-serial-port "test")
     (setq rs-process p)
+    (setq rs-log-rx nil)
 
     (rs-mode-set-major-and-mode-map)
 
@@ -303,7 +306,15 @@ Used to cleanup chunk output files.")
 	  (forward-char 1)
 	  (setq done t))))
 
-      (when (string-equal char-code "m")
+      ;; when we get here:
+      ;;
+      ;; num-codes = list of numeric codes from the escape sequence
+      ;;                  <esc> [ 3;5 --> (3 5)
+      ;;
+      ;; char-code = the actual escape command <esc> [ 3 m --> "m" 
+
+      (cond
+       ((string-equal char-code "m")
 	(setq n (- (point) start-pos))
 	(delete-region start-pos (point))
 	(setq start-pos (point))
@@ -311,6 +322,13 @@ Used to cleanup chunk output files.")
 	;; be better to use a marker later on
 	(setq cur-point (- cur-point n))
 	(setq pending-pos nil))
+
+       ((string-equal char-code "J")
+	(delete-region start-pos (point-max))
+	(setq pending-pos nil))
+       
+       (t
+	nil))
 
       (setq num-codes nil)
       (setq char-code nil)
@@ -362,14 +380,20 @@ Resets chunking. Erases buffer and all saved chunks."
 ;;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 (defun rs-enable-debug ()
+  (interactive)
   (setq rs-test-log-buffer (get-buffer-create "*rs-test-log*"))
   (with-current-buffer rs-test-log-buffer
     (erase-buffer)
     (setq rs-test-log-marker (make-marker))
-    (set-marker rs-test-log-marker (point-min))))
+    (set-marker rs-test-log-marker (point-min)))
+  (setq rs-log-rx t))
+
+(defun rs-disable-debug ()
+  (interactive)
+  (setq rs-log-rx nil))
 
 (defun rs-log (fmt &rest args)
-  (when t
+  (when rs-log-rx
     (if (null rs-test-log-buffer)
 	(rs-enable-debug))
     (apply 'rs-test-log fmt args)))
